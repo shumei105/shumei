@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>育才云图</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2/dist/echarts-wordcloud.min.js"></script>
+<style>
+  :root{ font-size: 16px; }
+  *{ box-sizing: border-box; margin:0; padding:0; }
+  body{
+    background:#0b1220; color:#dbe5ff; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+    overflow-x:hidden;
+  }
+  .screen{
+    width:100vw; height:100vh; display:flex; flex-direction:column; padding:0.6rem;
+    gap:0.6rem;
+  }
+  .header{
+    display:flex; align-items:center; justify-content:center; /* 修改为居中 */
+    padding:0.6rem 0.8rem;
+    background:linear-gradient(90deg,#0e1830,#0b1220); border:1px solid #1b2744; border-radius:12px;
+    box-shadow:0 4px 20px rgba(0,0,0,.35);
+    position: relative; /* 添加相对定位 */
+  }
+  .header .title{ 
+    font-size:1.25rem; letter-spacing:.06rem; font-weight:700; 
+    text-align: center; /* 确保文本居中 */
+  }
+  .header .meta{ 
+    position: absolute; /* 绝对定位 */
+    right: 0.8rem; /* 距离右侧 */
+    top: 50%; /* 垂直居中 */
+    transform: translateY(-50%); /* 垂直居中调整 */
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    opacity:.85; font-size:.9rem; 
+  }
+  .content{ 
+    flex:1; 
+    display:grid; 
+    grid-template-columns: 25% 50% 25%; 
+    gap:0.6rem; 
+    min-height:0; 
+  }
+  .col{ display:flex; flex-direction:column; gap:0.6rem; min-height:0; }
+  .panel{
+    flex:1; min-height:0; background:#0e1830; border:1px solid #1b2744; border-radius:12px;
+    padding:0.6rem; display:flex; flex-direction:column; gap:0.5rem;
+    transition: all 0.3s ease;
+  }
+  .panel:hover {
+    box-shadow: 0 0 15px rgba(79, 195, 247, 0.3);
+    border-color: #2a3c65;
+  }
+  .panel h3{
+    font-size:1rem; font-weight:600; letter-spacing:.04rem; color:#90c4ff; 
+    display:flex; align-items:center; justify-content: space-between;
+  }
+  .chart{ flex:1; min-height:200px; }
+  .footer{
+    text-align:center; opacity:.65; font-size:.85rem; padding:.2rem 0;
+  }
+  .bar { height:3px; background:linear-gradient(90deg,#4fc3f7,#7c4dff); border-radius:2px; }
+
+  /* AI分析按钮样式 */
+  .ai-button {
+    background: linear-gradient(90deg, #4fc3f7, #7c4dff);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .ai-button:hover {
+    box-shadow: 0 0 12px rgba(79, 195, 247, 0.5);
+    transform: translateY(-2px);
+  }
+  .ai-button .icon {
+    font-size: 16px;
+  }
+
+  /* 全国高校按钮样式 */
+  .national-button {
+    background: linear-gradient(90deg, #66bb6a, #43a047);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .national-button:hover {
+    box-shadow: 0 0 12px rgba(102, 187, 106, 0.5);
+    transform: translateY(-2px);
+  }
+  .national-button .icon {
+    font-size: 16px;
+  }
+
+  /* 高校指标按钮样式 */
+  .indicator-button {
+    background: linear-gradient(90deg, #ab47bc, #8e24aa);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .indicator-button:hover {
+    box-shadow: 0 0 12px rgba(171, 71, 188, 0.5);
+    transform: translateY(-2px);
+  }
+  .indicator-button .icon {
+    font-size: 16px;
+  }
+
+  /* 省份信息面板 */
+  #provinceInfo {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 320px;
+    background: rgba(14, 24, 48, 0.95);
+    border: 2px solid #4fc3f7;
+    border-radius: 12px;
+    padding: 20px;
+    z-index: 1000;
+    box-shadow: 0 0 30px rgba(79, 195, 247, 0.5);
+    backdrop-filter: blur(10px);
+    display: none;
+  }
+  #provinceInfo h2 {
+    color: #4fc3f7;
+    margin-bottom: 15px;
+    text-align: center;
+    border-bottom: 1px solid #334;
+    padding-bottom: 10px;
+  }
+  #provinceInfo .info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding: 8px;
+    background: rgba(27, 39, 68, 0.4);
+    border-radius: 6px;
+  }
+  #provinceInfo .close-btn {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 24px;
+    color: #dbe5ff;
+    cursor: pointer;
+    background: none;
+    border: none;
+    transition: color 0.3s;
+  }
+  #provinceInfo .close-btn:hover {
+    color: #4fc3f7;
+  }
+  
+  /* 小屏适配 */
+  @media (max-width: 1200px){
+    .content{ grid-template-columns:1fr; overflow:auto; }
+    #provinceInfo {
+      width: 90%;
+      max-width: 320px;
+    }
+    .header .meta {
+      position: static; /* 恢复默认定位 */
+      transform: none; /* 取消变换 */
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 8px;
+    }
+    .header {
+      justify-content: space-between; /* 小屏恢复原有布局 */
+      flex-wrap: wrap; /* 允许换行 */
+    }
+    .header .title {
+      width: 100%; /* 标题占满宽度 */
+      text-align: center; /* 文本居中 */
+      margin-bottom: 10px; /* 添加底部间距 */
+    }
+  }
+  
+  /* 高亮效果 */
+  .highlight {
+    box-shadow: 0 0 15px rgba(79, 195, 247, 0.7);
+    transform: scale(1.02);
+    z-index: 10;
+  }
+  
+  /* 动画效果 */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  .fade-in {
+    animation: fadeIn 0.5s ease-in-out;
+  }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="header">
+    <div class="title">育才云图</div> <!-- 修改标题 -->
+    <div class="meta">
+      <div id="clock">--:--:--</div>
+      <button class="national-button" id="national-btn">
+        <span class="icon">🏫</span>
+        <span>全国高校</span>
+      </button>
+      <button class="indicator-button" id="indicator-btn">
+        <span class="icon">📊</span>
+        <span>高校指标</span>
+      </button>
+      <button class="ai-button" id="ai-analysis-btn">
+        <span class="icon">🤖</span>
+        <span>AI分析</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="content">
+    <!-- 左列 -->
+    <div class="col">
+      <div class="panel">
+        <h3>教育发展指数（Gauge）</h3>
+        <div class="bar"></div>
+        <div id="gauge" class="chart"></div>
+      </div>
+      <div class="panel">
+        <h3>高校类型分布（Pie）</h3>
+        <div class="bar"></div>
+        <div id="pie" class="chart"></div>
+      </div>
+    </div>
+
+    <!-- 中列 -->
+    <div class="col">
+      <div class="panel" style="flex:1">
+        <h3>中国高校分布（Map）</h3>
+        <div class="bar"></div>
+        <div id="map" class="chart"></div>
+      </div>
+    </div>
+
+    <!-- 右列 -->
+    <div class="col">
+      <div class="panel">
+        <h3>高校综合实力（Radar）</h3>
+        <div class="bar"></div>
+        <div id="radar" class="chart"></div>
+      </div>
+      <div class="panel">
+        <h3>热词云（Word Cloud）</h3>
+        <div class="bar"></div>
+        <div id="wordcloud" class="chart"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">基于真实高校数据可视化分析</div>
+</div>
+
+<!-- 省份信息面板 -->
+<div id="provinceInfo">
+  <button class="close-btn">&times;</button>
+  <h2 id="provinceName">省份信息</h2>
+  <div class="info-row">
+    <span>985高校数量:</span>
+    <span id="985Count">0</span>
+  </div>
+  <div class="info-row">
+    <span>211高校数量:</span>
+    <span id="211Count">0</span>
+  </div>
+  <div class="info-row">
+    <span>双一流高校数量:</span>
+    <span id="doubleFirstCount">0</span>
+  </div>
+  <div class="info-row">
+    <span>教育发展指数:</span>
+    <span id="eduIndex">0</span>
+  </div>
+</div>
+
+<script>
+  // 实时时钟
+  const clockEl = document.getElementById('clock');
+  const tick = () => {
+    const d = new Date();
+    const pad = n => n.toString().padStart(2,'0');
+    clockEl.textContent = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+  tick(); setInterval(tick, 1000);
+
+  // AI分析按钮点击事件
+  document.getElementById('ai-analysis-btn').addEventListener('click', function() {
+    window.location.href = 'http://127.0.0.1:5000';
+  });
+
+  // 全国高校按钮点击事件
+  document.getElementById('national-btn').addEventListener('click', function() {
+    window.location.href = '第二页面.html';
+  });
+
+  // 高校指标按钮点击事件 - 新增功能
+  document.getElementById('indicator-btn').addEventListener('click', function() {
+    window.location.href = '第三页面.html';
+  });
+
+  // 统一初始化方法
+  function init(id){ return echarts.init(document.getElementById(id)); }
+
+  // 高校数据集 - 更新为包含双一流数据
+  const universityData = [
+    {name: '北京市', value985: 8, value211: 18, valueDoubleFirst: 34, types: [
+      {value: 15, name: '综合类'}, {value: 8, name: '理工类'}, {value: 3, name: '师范类'}
+    ]},
+    {name: '上海市', value985: 4, value211: 6, valueDoubleFirst: 15, types: [
+      {value: 6, name: '综合类'}, {value: 3, name: '理工类'}, {value: 1, name: '财经类'}
+    ]},
+    {name: '陕西省', value985: 3, value211: 5, valueDoubleFirst: 8, types: [
+      {value: 4, name: '综合类'}, {value: 3, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '湖南省', value985: 3, value211: 1, valueDoubleFirst: 5, types: [
+      {value: 3, name: '综合类'}, {value: 2, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '江西省', value985: 2, value211: 1, valueDoubleFirst: 1, types: [
+      {value: 2, name: '综合类'}, {value: 1, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '山东省', value985: 2, value211: 1, valueDoubleFirst: 4, types: [
+      {value: 4, name: '综合类'}, {value: 2, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '辽宁省', value985: 2, value211: 2, valueDoubleFirst: 4, types: [
+      {value: 3, name: '综合类'}, {value: 2, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '青海省', value985: 2, value211: 1, valueDoubleFirst: 1, types: [
+      {value: 1, name: '综合类'}, {value: 1, name: '理工类'}
+    ]},
+    {name: '湖北省', value985: 2, value211: 4, valueDoubleFirst: 7, types: [
+      {value: 5, name: '综合类'}, {value: 3, name: '理工类'}, {value: 2, name: '师范类'}
+    ]},
+    {name: '江苏省', value985: 2, value211: 9, valueDoubleFirst: 16, types: [
+      {value: 8, name: '综合类'}, {value: 6, name: '理工类'}, {value: 3, name: '师范类'}
+    ]},
+    {name: '四川省', value985: 2, value211: 3, valueDoubleFirst: 8, types: [
+      {value: 4, name: '综合类'}, {value: 3, name: '理工类'}, {value: 2, name: '师范类'}
+    ]},
+    {name: '天津市', value985: 2, value211: 1, valueDoubleFirst: 6, types: [
+      {value: 2, name: '综合类'}, {value: 2, name: '理工类'}, {value: 1, name: '财经类'}
+    ]},
+    {name: '广东省', value985: 2, value211: 2, valueDoubleFirst: 8, types: [
+      {value: 4, name: '综合类'}, {value: 3, name: '理工类'}, {value: 2, name: '师范类'}
+    ]},
+    {name: '重庆市', value985: 1, value211: 1, valueDoubleFirst: 2, types: [
+      {value: 2, name: '综合类'}, {value: 1, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '浙江省', value985: 1, value211: 0, valueDoubleFirst: 3, types: [
+      {value: 3, name: '综合类'}, {value: 2, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '甘肃省', value985: 1, value211: 0, valueDoubleFirst: 1, types: [
+      {value: 2, name: '综合类'}, {value: 1, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '安徽省', value985: 1, value211: 2, valueDoubleFirst: 3, types: [
+      {value: 3, name: '综合类'}, {value: 2, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '吉林省', value985: 1, value211: 1, valueDoubleFirst: 3, types: [
+      {value: 3, name: '综合类'}, {value: 2, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '福建省', value985: 1, value211: 1, valueDoubleFirst: 2, types: [
+      {value: 3, name: '综合类'}, {value: 2, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '黑龙江省', value985: 1, value211: 3, valueDoubleFirst: 4, types: [
+      {value: 3, name: '综合类'}, {value: 2, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '云南省', value985: 0, value211: 1, valueDoubleFirst: 1, types: [
+      {value: 2, name: '综合类'}, {value: 1, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '西藏自治区', value985: 0, value211: 1, valueDoubleFirst: 1, types: [
+      {value: 1, name: '综合类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '内蒙古自治区', value985: 0, value211: 1, valueDoubleFirst: 1, types: [
+      {value: 2, name: '综合类'}, {value: 1, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '贵州省', value985: 0, value211: 1, valueDoubleFirst: 1, types: [
+      {value: 2, name: '综合类'}, {value: 1, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '宁夏回族自治区', value985: 0, value211: 1, valueDoubleFirst: 1, types: [
+      {value: 1, name: '综合类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '新疆维吾尔自治区', value985: 0, value211: 2, valueDoubleFirst: 2, types: [
+      {value: 3, name: '综合类'}, {value: 2, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '山西省', value985: 0, value211: 1, valueDoubleFirst: 1, types: [
+      {value: 2, name: '综合类'}, {value: 1, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '广西壮族自治区', value985: 0, value211: 1, valueDoubleFirst: 1, types: [
+      {value: 3, name: '综合类'}, {value: 2, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '河北省', value985: 0, value211: 1, valueDoubleFirst: 2, types: [
+      {value: 3, name: '综合类'}, {value: 2, name: '理工类'}, {value: 1, name: '师范类'}
+    ]},
+    {name: '河南省', value985: 0, value211: 1, valueDoubleFirst: 2, types: [
+      {value: 4, name: '综合类'}, {value: 2, name: '理工类'}, {value: 2, name: '师范类'}
+    ]},
+    {name: '海南省', value985: 0, value211: 1, valueDoubleFirst: 1, types: [
+      {value: 2, name: '综合类'}, {value: 1, name: '理工类'}, {value: 1, name: '师范类'}
+    ]}
+  ];
+
+  // 计算教育发展指数 (基于985、211和双一流数量)
+  universityData.forEach(province => {
+    province.eduIndex = Math.round((province.value985 * 60 + province.value211 * 30 + province.valueDoubleFirst * 10) / 10);
+  });
+
+  // 找到最大教育指数用于归一化
+  const maxEduIndex = Math.max(...universityData.map(p => p.eduIndex));
+  // 计算最大刻度值（向上取整到最近的10的倍数）
+  const maxScaleValue = Math.ceil(maxEduIndex / 10) * 10;
+  
+  // 计算平均教育指数作为仪表盘值
+  const avgEduIndex = Math.round(universityData.reduce((sum, p) => sum + p.eduIndex, 0) / universityData.length);
+  
+  // 全国高校类型分布数据（默认饼图数据）
+  const pieData = [
+    {value: 42, name: '综合类'},
+    {value: 28, name: '理工类'},
+    {value: 15, name: '师范类'},
+    {value: 10, name: '财经类'},
+    {value: 5, name: '其他类'}
+  ];
+
+  // 省份专业热词数据
+  const provinceKeywords = {
+    '北京市': [
+      {name: '人工智能', value: 120}, {name: '大数据', value: 95}, {name: '算法', value: 90},
+      {name: '软件工程', value: 80}, {name: '网络安全', value: 78}, {name: '物联网', value: 60},
+      {name: '云计算', value: 55}, {name: '深度学习', value: 85}, {name: '可视化', value: 65},
+      {name: '机器人', value: 52}, {name: '数据库', value: 58}, {name: '操作系统', value: 61}
+    ],
+    '上海市': [
+      {name: '金融科技', value: 110}, {name: '国际贸易', value: 85}, {name: '经济管理', value: 90},
+      {name: '人工智能', value: 75}, {name: '生物医学', value: 70}, {name: '新材料', value: 65},
+      {name: '物流管理', value: 60}, {name: '市场营销', value: 55}, {name: '电子商务', value: 50},
+      {name: '外语', value: 45}, {name: '法律', value: 40}, {name: '设计', value: 35}
+    ],
+    '陕西省': [
+      {name: '航空航天', value: 100}, {name: '机械工程', value: 90}, {name: '电子信息', value: 85},
+      {name: '材料科学', value: 80}, {name: '自动化', value: 75}, {name: '计算机', value: 70},
+      {name: '兵器科学', value: 65}, {name: '能源动力', value: 60}, {name: '土木工程', value: 55},
+      {name: '数学', value: 50}, {name: '物理', value: 45}, {name: '化学', value: 40}
+    ],
+    '江苏省': [
+      {name: '电子信息', value: 95}, {name: '机械工程', value: 90}, {name: '材料科学', value: 85},
+      {name: '自动化', value: 80}, {name: '计算机', value: 75}, {name: '生物医学', value: 70},
+      {name: '化工', value: 65}, {name: '土木工程', value: 60}, {name: '经济管理', value: 55},
+      {name: '外语', value: 50}, {name: '法律', value: 45}, {name: '设计', value: 40}
+    ],
+    '湖北省': [
+      {name: '光电信息', value: 90}, {name: '机械工程', value: 85}, {name: '电子信息', value: 80},
+      {name: '材料科学', value: 75}, {name: '自动化', value: 70}, {name: '计算机', value: 65},
+      {name: '生物医学', value: 60}, {name: '土木工程', value: 55}, {name: '水利水电', value: 50},
+      {name: '经济管理', value: 45}, {name: '法律', value: 40}, {name: '新闻', value: 35}
+    ],
+    '广东省': [
+      {name: '电子信息', value: 95}, {name: '计算机', value: 90}, {name: '人工智能', value: 85},
+      {name: '经济管理', value: 80}, {name: '金融', value: 75}, {name: '国际贸易', value: 70},
+      {name: '生物医学', value: 65}, {name: '新材料', value: 60}, {name: '自动化', value: 55},
+      {name: '设计', value: 50}, {name: '外语', value: 45}, {name: '旅游', value: 40}
+    ],
+    '四川省': [
+      {name: '电子信息', value: 90}, {name: '计算机', value: 85}, {name: '人工智能', value: 80},
+      {name: '机械工程', value: 75}, {name: '材料科学', value: 70}, {name: '生物医学', value: 65},
+      {name: '水利水电', value: 60}, {name: '土木工程', value: 55}, {name: '经济管理', value: 50},
+      {name: '旅游', value: 45}, {name: '外语', value: 40}, {name: '法律', value: 35}
+    ],
+    '全国': [
+      {name: '人工智能', value: 120}, {name: '大数据', value: 95}, {name: '算法', value: 90},
+      {name: '软件工程', value: 80}, {name: '网络安全', value: 78}, {name: '物联网', value: 60},
+      {name: '云计算', value: 55}, {name: '深度学习', value: 85}, {name: '可视化', value: 65},
+      {name: '机器人', value: 52}, {name: '数据库', value: 58}, {name: '操作系统', value: 61}
+    ]
+  };
+
+  // 默认热词数据（全国）
+  let currentWordCloudData = provinceKeywords['全国'];
+
+  // 雷达图指标数据
+  const radarIndicators = [
+    { name: '办学资源', max: 100 },
+    { name: '人才培养', max: 100 },
+    { name: '科学研究', max: 100 },
+    { name: '社会服务', max: 100 },
+    { name: '重大项目与成果', max: 100 },
+    { name: '国际竞争力', max: 100 }
+  ];
+
+  // 生成省份的雷达图数据
+  function generateRadarData(provinceName) {
+    if (provinceName === '全国') {
+      // 全国平均值
+      return {
+        name: '全国平均',
+        value: [75, 80, 85, 70, 65, 60]
+      };
+    }
+    
+    const province = universityData.find(p => p.name === provinceName);
+    if (!province) {
+      return {
+        name: provinceName,
+        value: [50, 50, 50, 50, 50, 50]
+      };
+    }
+    
+    // 根据省份的985/211/双一流数量等数据生成雷达图值
+    const baseValue = province.eduIndex / 10;
+    const value985 = province.value985 * 3;
+    const value211 = province.value211 * 2;
+    const valueDoubleFirst = province.valueDoubleFirst * 1.5;
+    
+    return {
+      name: provinceName,
+      value: [
+        Math.min(100, baseValue * 6 + value985 + value211 + valueDoubleFirst), // 办学资源
+        Math.min(100, baseValue * 7 + value211 * 1.5 + valueDoubleFirst),      // 人才培养
+        Math.min(100, baseValue * 8 + value985 * 2 + valueDoubleFirst),        // 科学研究
+        Math.min(100, baseValue * 5 + value211 + valueDoubleFirst),            // 社会服务
+        Math.min(100, baseValue * 4 + value985 * 3 + valueDoubleFirst),        // 重大项目与成果
+        Math.min(100, baseValue * 5 + value985 * 2 + valueDoubleFirst)         // 国际竞争力
+      ]
+    };
+  }
+
+  // 图表 1：仪表盘 - 显示教育指数
+  const gauge = init('gauge');
+  let currentGaugeValue = avgEduIndex;
+  let currentGaugeName = '全国平均教育指数';
+  
+  function updateGauge(value, name) {
+    currentGaugeValue = value;
+    currentGaugeName = name;
+    gauge.setOption({
+      series: [{
+        data: [{ value: value, name: name }]
+      }]
+    });
+  }
+  
+  // 计算分割数（每10一个刻度）
+  const splitNumber = maxScaleValue / 10;
+  
+  gauge.setOption({
+    tooltip: {},
+    series: [{
+      type: 'gauge',
+      center: ['50%', '60%'],
+      radius: '80%',
+      startAngle: 210, endAngle: -30,
+      min: 0, max: maxScaleValue, splitNumber: splitNumber,
+      axisLine: { 
+        lineStyle: { 
+          width: 20,
+          color: [
+            [0.3, '#ff6e76'],
+            [0.7, '#fddd60'],
+            [1, '#4fc3f7']
+          ]
+        } 
+      },
+      axisTick: { 
+        distance: 0,  // 调整刻度线位置
+        length: 6,
+        lineStyle: { 
+          color: '#dbe5ff',
+            width: 1
+        }
+      },
+      splitLine: {
+        distance: -20,  // 调整刻度分割线位置
+        length: 10,
+        lineStyle: { 
+          color: 'auto',
+          width: 2
+        }
+      },
+      axisLabel: { 
+        distance: -10,  // 将标签移到仪表盘内部
+        color: '#dbe5ff',
+        fontSize: 10,
+        fontWeight: 'bold',
+        formatter: function(value) {
+          // 只显示10的倍数
+          return value % 10 === 0 ? value : '';
+        }
+      },
+      pointer: { 
+        width: 6, 
+        length: '70%',
+        itemStyle: { 
+          color: 'auto',
+          shadowColor: 'rgba(0, 0, 0, 0.5)',
+          shadowBlur: 5,
+          shadowOffsetX: 2,
+        shadowOffsetY: 2
+        }
+      },
+      detail: { 
+        valueAnimation: true, 
+        fontSize: 28,
+        fontWeight: 'bold',
+        offsetCenter: [0, '70%'],  // 将数值移到仪表盘下方
+        formatter: '{value}',
+        color: '#dbe5ff'
+      },
+      title: { 
+        fontSize: 14, 
+        offsetCenter: [0, '30%'],
+        color: '#90c4ff'
+      },
+      data: [{ value: currentGaugeValue, name: currentGaugeName }]
+    }]
+  });
+
+  // 图表 2：饼图 - 高校类型分布
+  const pie = init('pie');
+  
+  // 更新饼图函数
+  function updatePieChart(provinceName) {
+    if (provinceName === '全国') {
+      // 显示全国数据
+      pie.setOption({
+        tooltip: { trigger: 'item' },
+        legend: { top: 0, textStyle: { color: '#dbe5ff' } },
+        color: ['#4fc3f7', '#7c4dff', '#ff6b81', '#ffa726', '#66bb6a'],
+        series: [{
+          type: 'pie', 
+          radius: ['35%', '65%'], 
+          center: ['50%', '58%'],
+          roseType: false, 
+          itemStyle: { borderColor: '#0e1830', borderWidth: 2 },
+          label: { formatter: '{b}\n{d}%', color: '#dbe5ff' },
+          data: pieData
+        }]
+      });
+      return;
+    }
+    
+    // 查找省份数据
+    const province = universityData.find(p => p.name === provinceName);
+    if (province && province.types) {
+      pie.setOption({
+        tooltip: { trigger: 'item' },
+        legend: { top: 0, textStyle: { color: '#dbe5ff' } },
+        color: ['#4fc3f7', '#7c4dff', '#ff6b81', '#ffa726', '#66bb6a'],
+        series: [{
+          type: 'pie', 
+          radius: ['35%', '65%'], 
+          center: ['50%', '58%'],
+          roseType: false, 
+          itemStyle: { borderColor: '#0e1830', borderWidth: 2 },
+          label: { formatter: '{b}\n{d}%', color: '#dbe5ff' },
+          data: province.types
+        }]
+      });
+    }
+  }
+  
+  // 初始化饼图
+  updatePieChart('全国');
+
+  // 图表 3：雷达图 - 高校综合实力
+  const radar = init('radar');
+  
+  // 更新雷达图函数
+  function updateRadarChart(provinceName) {
+    const radarData = generateRadarData(provinceName);
+    
+    radar.setOption({
+      tooltip: {},
+      legend: {
+        data: [provinceName],
+        textStyle: { color: '#dbe5ff' },
+        // 修改图例位置到左侧
+        left: 'left',
+        top: 'middle',
+        orient: 'vertical'
+      },
+      radar: {
+        indicator: radarIndicators,
+        shape: 'polygon',
+        splitNumber: 5,
+        // 调整雷达图位置，为左侧图例留出空间
+        center: ['60%', '50%'],
+        radius: '60%',
+        axisName: {
+          color: '#dbe5ff'
+        },
+        splitLine: {
+          lineStyle: {
+            color: 'rgba(211, 253, 250, 0.8)'
+          }
+        },
+        splitArea: {
+          show: true,
+          areaStyle: {
+            color: ['rgba(79, 195, 247, 0.05)', 'rgba(124, 77, 255, 0.05)']
+          }
+        },
+        axisLine: {
+          lineStyle: {
+            color: 'rgba(211, 253, 250, 0.8)'
+          }
+        }
+      },
+      series: [{
+        name: provinceName,
+        type: 'radar',
+        data: [radarData],
+        color: ['#4fc3f7'],
+        areaStyle: {
+          color: new echarts.graphic.RadialGradient(0.5, 0.5, 1, [
+            { offset: 0, color: 'rgba(79, 195, 247, 0.5)' },
+            { offset: 1, color: 'rgba(79, 195, 247, 0.1)' }
+          ])
+        },
+        lineStyle: {
+          width: 2,
+          color: '#4fc3f7'
+        },
+        symbol: 'circle',
+        symbolSize: 8,
+        label: {
+          show: false // 不显示每个指标的分数
+        }
+      }]
+    });
+  }
+  
+  // 初始化雷达图
+  updateRadarChart('全国');
+
+  // 图表 4：词云
+  const wordcloud = init('wordcloud');
+  
+  // 更新词云函数
+  function updateWordCloud(provinceName) {
+    // 获取对应省份的热词数据，如果没有则使用全国数据
+    const wordData = provinceKeywords[provinceName] || provinceKeywords['全国'];
+    currentWordCloudData = wordData;
+    
+    wordcloud.setOption({
+      tooltip: {},
+      series: [{
+        type: 'wordCloud',
+        shape: 'circle',
+        gridSize: 8,
+        sizeRange: [12, 36],
+        rotationRange: [-45, 90],
+        textStyle: { 
+          color: () => '#'+Math.floor(Math.random()*0xffffff).toString(16).padStart(6,'0') 
+        },
+        data: wordData
+      }]
+    });
+  }
+  
+  // 初始化词云
+  updateWordCloud('全国');
+
+  // 图表 5：中国地图
+  const map = init('map');
+  
+  // 加载中国地图数据
+  function loadChinaMap() {
+    fetch('https://geo.datav.aliyun.com/areas_v3/bound/100000_full.json')
+      .then(response => response.json())
+      .then(geoJson => {
+        // 注册中国地图
+        echarts.registerMap('china', geoJson);
+        
+        // 准备地图数据
+        const chinaData = universityData.map(province => ({
+          name: province.name,
+          value: province.eduIndex,
+          value985: province.value985,
+          value211: province.value211,
+          valueDoubleFirst: province.valueDoubleFirst
+        }));
+        
+        // 添加可能缺失的地区
+        const additionalRegions = [
+          {name: '台湾', value: 30, value985: 0, value211: 0, valueDoubleFirst: 0},
+          {name: '香港', value: 50, value985: 0, value211: 0, valueDoubleFirst: 0},
+          {name: '澳门', value: 40, value985: 0, value211: 0, valueDoubleFirst: 0}
+        ];
+       
+        // 设置地图选项
+        map.setOption({
+          tooltip: {
+            trigger: 'item',
+            formatter: function(params) {
+              if (params.data) {
+                return `${params.name}<br/>教育指数：${params.data.value}<br/>985高校：${params.data.value985 || 0}<br/>211高校：${params.data.value211 || 0}<br/>双一流高校：${params.data.valueDoubleFirst || 0}`;
+              }
+              return `${params.name}<br/>教育指数：暂无数据`;
+            }
+          },
+          visualMap: {
+            type: 'continuous',
+            left: 'left',
+            min: 0,
+            max: maxScaleValue,
+            text: ['高', '低'],
+            calculable: true,
+            inRange: {
+              color: ['#e0f3ff', '#4fc3f7', '#006edd', '#003d82']
+            },
+            textStyle: {
+              color: '#dbe5ff'
+            }
+          },
+          series: [
+            {
+              name: '中国教育发展指数',
+              type: 'map',
+              map: 'china',
+              roam: true,
+              scaleLimit: {
+                min: 0.8,
+                max: 5
+              },
+              data: [...chinaData, ...additionalRegions],
+              label: {
+                show: false
+              },
+              itemStyle: {
+                areaColor: '#112345',
+                borderColor: '#4fc3f7',
+                borderWidth: 0.5
+              },
+              emphasis: {
+                label: {
+                  show: true,
+                  fontSize: 11,
+                  color: '#fff',
+                  fontWeight: 'bold'
+                },
+                itemStyle: {
+                  areaColor: '#1f3d6b',
+                  borderColor: '#7c4dff',
+                  borderWidth: 1.5,
+                  shadowBlur: 10,
+                  shadowColor: 'rgba(0,0,0,0.5)'
+                }
+              },
+              select: {
+                itemStyle: {
+                  areaColor: '#7c4dff',
+                  borderColor: '#fff',
+                  borderWidth: 2
+                },
+                label: {
+                  show: true,
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: 'bold'
+                }
+              }
+            }
+          ]
+        });
+        
+        // 添加点击事件
+        map.on('click', function(params) {
+          const provinceName = params.name;
+          const provinceData = [...universityData, ...additionalRegions].find(p => p.name === provinceName);
+          
+          if (provinceData) {
+            // 更新仪表盘
+            updateGauge(provinceData.eduIndex, provinceName + '教育指数');
+            
+            // 更新饼图
+            updatePieChart(provinceName);
+            
+            // 更新雷达图
+            updateRadarChart(provinceName);
+            
+            // 更新词云
+            updateWordCloud(provinceName);
+            
+            // 显示省份信息
+            document.getElementById('provinceName').textContent = provinceName;
+            document.getElementById('985Count').textContent = provinceData.value985 || 0;
+            document.getElementById('211Count').textContent = provinceData.value211 || 0;
+            document.getElementById('doubleFirstCount').textContent = provinceData.valueDoubleFirst || 0;
+            document.getElementById('eduIndex').textContent = provinceData.eduIndex || 0;
+            
+            // 显示信息面板
+            document.getElementById('provinceInfo').style.display = 'block';
+            
+            // 高亮当前选中的省份
+            map.dispatchAction({
+              type: 'mapSelect',
+              name: provinceName
+            });
+            
+            // 放大到选中省份
+            map.dispatchAction({
+              type: 'mapRoam',
+              zoom: 3,
+              center: map.convertToPixel('geo', params.event.eventOffset)
+            });
+          }
+        });
+      })
+      .catch(error => {
+        console.error('加载中国地图失败:', error);
+        // 降级方案
+        map.setOption({
+          tooltip: { trigger: 'item' },
+          geo: {
+            map: 'world',
+            roam: true,
+            label: { show: false },
+            itemStyle: { areaColor: '#112345', borderColor: '#335' },
+            emphasis: { itemStyle: { areaColor: '#1f3d6b' } }
+          }
+        });
+      });
+  }
+  
+  // 初始化中国地图
+  loadChinaMap();
+
+  // 关闭省份信息面板
+  document.querySelector('.close-btn').addEventListener('click', function() {
+    document.getElementById('provinceInfo').style.display = 'none';
+    
+    // 关键修改：正确重置地图状态的三步操作
+    // 1. 取消所有选中状态
+    map.dispatchAction({
+      type: 'unselect',
+      seriesIndex: 0
+    });
+    
+    // 2. 取消高亮状态
+    map.dispatchAction({
+      type: 'downplay',
+      seriesIndex: 0
+    });
+    
+    // 3. 重置地图到初始视图
+    map.dispatchAction({
+      type: 'restore'
+    });
+    
+    // 重置仪表盘为全国平均值
+    updateGauge(avgEduIndex, '全国平均教育指数');
+    
+    // 重置饼图为全国数据
+    updatePieChart('全国');
+    
+    // 重置雷达图为全国数据
+    updateRadarChart('全国');
+    
+    // 重置词云为全国数据
+    updateWordCloud('全国');
+  });
+
+  // 自适应
+  const charts = [gauge, pie, radar, wordcloud, map];
+  window.addEventListener('resize', () => charts.forEach(c => c.resize()));
+  
+  // 添加面板悬停效果
+  document.querySelectorAll('.panel').forEach(panel => {
+    panel.addEventListener('mouseenter', () => {
+      panel.classList.add('highlight');
+    });
+    panel.addEventListener('mouseleave', () => {
+      panel.classList.remove('highlight');
+    });
+  });
+</script>
+</body>
+</html>

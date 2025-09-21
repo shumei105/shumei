@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>层次结构可视化</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+            margin: 0;
+            padding: 20px;
+            background: #0b1220;
+            color: #dbe5ff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #0e1830, #0b1220);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+            padding: 30px;
+            border: 1px solid #1b2744;
+            transition: all 0.3s ease;
+        }
+        
+        .container:hover {
+            box-shadow: 0 0 25px rgba(79, 195, 247, 0.2);
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .tab-button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(79, 195, 247, 0.1);
+            color: #4fc3f7;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(79, 195, 247, 0.2);
+            font-size: 0.95rem;
+            letter-spacing: 0.02rem;
+        }
+        
+        .tab-button:hover {
+            background: rgba(79, 195, 247, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(79, 195, 247, 0.3);
+            border-color: #4fc3f7;
+        }
+        
+        .tab-button.active {
+            background: linear-gradient(135deg, #4fc3f7, #7c4dff);
+            color: white;
+            box-shadow: 0 6px 25px rgba(79, 195, 247, 0.4);
+            border-color: transparent;
+        }
+        
+        .visualization-panel {
+            display: none;
+        }
+        
+        .visualization-panel.active {
+            display: block;
+        }
+        
+        h1 {
+            color: #90c4ff;
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 700;
+            font-size: 2.2rem;
+            letter-spacing: 0.06rem;
+            position: relative;
+            padding-bottom: 15px;
+            text-shadow: 0 0 10px rgba(79, 195, 247, 0.3);
+        }
+        
+        h1:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 4px;
+            background: linear-gradient(90deg, #4fc3f7, #7c4dff);
+            border-radius: 2px;
+            box-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
+        }
+        
+        .visualization-wrapper {
+            width: 100%;
+            min-height: 600px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #0e1830;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+            border: 1px solid #1b2744;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .visualization-wrapper:hover {
+            box-shadow: 0 0 15px rgba(79, 195, 247, 0.3);
+            border-color: #2a3c65;
+        }
+        
+        /* 强制iframe占满容器 */
+        .visualization-wrapper iframe {
+            width: 100% !important;
+            height: 600px !important;
+            min-width: 100% !important;
+            min-height: 600px !important;
+            max-width: 100% !important;
+            max-height: 600px !important;
+            border: none;
+            display: block !important;
+            position: relative !important;
+        }
+        
+        /* Flourish容器强制尺寸 */
+        .flourish-embed {
+            width: 100% !important;
+            height: 600px !important;
+            min-width: 100% !important;
+            min-height: 600px !important;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* 强制所有Flourish相关元素 */
+        .flourish-embed > * {
+            width: 100% !important;
+            height: 600px !important;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #90c4ff;
+            font-size: 1.1rem;
+        }
+        
+        .error {
+            text-align: center;
+            padding: 50px;
+            color: #ff6b81;
+            font-size: 1.1rem;
+        }
+        
+        .description {
+            margin-top: 30px;
+            padding: 25px;
+            background: rgba(14, 24, 48, 0.8);
+            border-radius: 12px;
+            border-left: 4px solid #4fc3f7;
+            backdrop-filter: blur(5px);
+            border: 1px solid #1b2744;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .description h3 {
+            color: #4fc3f7;
+            margin-top: 0;
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+            letter-spacing: 0.04rem;
+        }
+        
+        .description p {
+            line-height: 1.7;
+            color: #dbe5ff;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+        
+        .description strong {
+            color: #90c4ff;
+        }
+        
+        .description ul {
+            color: #dbe5ff;
+            opacity: 0.9;
+        }
+        
+        .description li {
+            margin-bottom: 8px;
+            padding-left: 5px;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .visualization-wrapper {
+                min-height: 400px;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .tab-button {
+                width: 100%;
+                text-align: center;
+            }
+        }
+        
+        /* 添加科技感装饰元素 */
+        .bar {
+            height: 3px;
+            background: linear-gradient(90deg, #4fc3f7, #7c4dff);
+            border-radius: 2px;
+            margin-bottom: 15px;
+            box-shadow: 0 0 10px rgba(79, 195, 247, 0.5);
+        }
+        
+        /* 页面加载动画 */
+        @keyframes fadeIn {
+            from { 
+                opacity: 0; 
+                transform: translateY(20px);
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0);
+            }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.8s ease-out;
+        }
+        
+        /* 科技感光效 */
+        @keyframes glow {
+            0%, 100% { 
+                box-shadow: 0 0 5px rgba(79, 195, 247, 0.2);
+            }
+            50% { 
+                box-shadow: 0 0 20px rgba(79, 195, 247, 0.4);
+            }
+        }
+        
+        .glow-effect {
+            animation: glow 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>全国高校总览</h1>
+        
+        <!-- 切换控制 -->
+        <div class="controls">
+            <button class="tab-button active" onclick="switchVisualization('viz1')">
+                气泡图
+            </button>
+            <button class="tab-button" onclick="switchVisualization('viz2')">
+                径向图
+            </button>
+            <button class="tab-button" onclick="switchVisualization('viz3')">
+                词云图
+            </button>
+        </div>
+        
+        <!-- 第一个可视化面板 -->
+        <div class="visualization-panel active" id="viz1">
+            <div class="visualization-wrapper">
+                <div class="bar"></div>
+                <div class="loading">
+                    <p>数据加载中...</p>
+                </div>
+                
+                <!-- 原有的 Flourish 嵌入代码 -->
+                <div class="flourish-embed flourish-hierarchy" data-src="visualisation/25158890" data-width="100%" data-height="600">
+                    <script src="https://public.flourish.studio/resources/embed.js"></script>
+                    <noscript><img src="https://public.flourish.studio/visualisation/25158890/thumbnail" width="100%" alt="hierarchy visualization" />
+                </noscript>
+            </div>
+            </div>
+            
+            
+        </div>
+        
+        <!-- 第二个可视化面板 -->
+        <div class="visualization-panel" id="viz2">
+            <div class="visualization-wrapper">
+                <div class="bar"></div>
+                <div class="loading">
+                    <p>数据加载中...</p>
+                </div>
+                
+                <!-- 新的 Flourish 嵌入代码 -->
+                <div class="flourish-embed flourish-hierarchy" data-src="visualisation/25209240" data-width="100%" data-height="600">
+                    <script src="https://public.flourish.studio/resources/embed.js"></script>
+                    <noscript><img src="https://public.flourish.studio/visualisation/25209240/thumbnail" width="100%" alt="hierarchy visualization" />
+                </noscript>
+            </div>
+            </div>
+        
+        </div>
+        
+        <!-- 第三个可视化面板 - 词云图 -->
+        <div class="visualization-panel" id="viz3">
+            <div class="visualization-wrapper">
+                <div class="bar"></div>
+                <div class="loading">
+                    <p>数据加载中...</p>
+                </div>
+                
+                <!-- 词云图 Flourish 嵌入代码 -->
+                <div class="flourish-embed flourish-word-cloud" data-src="visualisation/25209598" data-width="100%" data-height="600">
+                    <script src="https://public.flourish.studio/resources/embed.js"></script>
+                    <noscript><img src="https://public.flourish.studio/visualisation/25209598/thumbnail" width="100%" alt="word-cloud visualization" />
+                </noscript>
+            </div>
+            </div>
+            
+    
+        </div>
+    </div>
+    
+    <script>
+        // 切换可视化界面的函数 - 增强版
+        function switchVisualization(vizId) {
+            // 隐藏所有面板
+            const panels = document.querySelectorAll('.visualization-panel');
+            panels.forEach(panel => {
+                panel.classList.remove('active');
+            });
+            
+            // 移除所有按钮的激活状态和光效
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(button => {
+                button.classList.remove('active');
+                button.classList.remove('glow-effect');
+            });
+            
+            // 显示选中的面板
+            const targetPanel = document.getElementById(vizId);
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+                // 添加淡入动画
+                targetPanel.classList.add('fade-in');
+                setTimeout(() => {
+                    targetPanel.classList.remove('fade-in');
+                }, 800);
+            }
+            
+            // 激活对应的按钮
+            const targetButton = event.target;
+            targetButton.classList.add('active');
+            
+            // 强制刷新Flourish - 关键改进
+            setTimeout(() => {
+                handleResize();
+                forceRefreshFlourish();
+                
+                // 触发窗口resize事件，通知Flourish重新计算
+                window.dispatchEvent(new Event('resize'));
+                
+                // 再次延迟调整，确保完全加载
+                setTimeout(() => {
+                    handleResize();
+                }, 300);
+            }, 100);
+        }
+        
+        // 强制刷新所有图表
+        function forceRefreshAll() {
+            // 刷新所有iframe
+            const iframes = document.querySelectorAll('iframe');
+            iframes.forEach(iframe => {
+                if (iframe.src) {
+                    iframe.src = iframe.src;
+                }
+            });
+            
+            // 刷新Flourish嵌入
+            handleResize();
+            forceRefreshFlourish();
+            
+            // 触发窗口resize事件
+            window.dispatchEvent(new Event('resize'));
+        }
+        
+        // 页面加载完成后的处理 - 增强版
+        document.addEventListener('DOMContentLoaded', function() {
+            // 添加页面加载动画
+            document.querySelector('.container').classList.add('fade-in');
+            
+            // 隐藏加载提示
+            const loadingElements = document.querySelectorAll('.loading');
+            loadingElements.forEach(loading => {
+                // 等待 Flourish 脚本加载完成
+                setTimeout(function() {
+                    loading.style.display = 'none';
+                    // 加载完成后立即调整尺寸
+                    handleResize();
+                }, 3000);
+            });
+            
+            // 为按钮添加光效
+            const buttons = document.querySelectorAll('.tab-button');
+            buttons.forEach(button => {
+                button.addEventListener('mouseenter', function() {
+                    if (!this.classList.contains('active')) {
+                        this.classList.add('glow-effect');
+                    }
+                });
+                button.addEventListener('mouseleave', function() {
+                    this.classList.remove('glow-effect');
+                });
+            });
+            
+            // 监听Flourish加载完成事件
+            window.addEventListener('message', function(event) {
+                if (event.data && event.data.type === 'flourish_embed_loaded') {
+                    console.log('Flourish加载完成，调整尺寸');
+                    setTimeout(() => {
+                        handleResize();
+                        forceRefreshFlourish();
+                    }, 200);
+                }
+            });
+            
+            // 定期检查并修复显示问题
+            setInterval(() => {
+                const activePanel = document.querySelector('.visualization-panel.active');
+                if (activePanel) {
+                    const iframe = activePanel.querySelector('iframe');
+                    if (iframe && (iframe.offsetHeight < 500 || iframe.offsetWidth < 500)) {
+                        console.log('检测到显示异常，正在修复...');
+                        handleResize();
+                        forceRefreshFlourish();
+                    }
+                }
+            }, 5000);
+            
+            // 错误处理
+            window.addEventListener('error', function(e) {
+                if (e.filename && e.filename.includes('flourish')) {
+                    const vizWrappers = document.querySelectorAll('.visualization-wrapper');
+                    vizWrappers.forEach(wrapper => {
+                        if (!wrapper.querySelector('.flourish-embed iframe')) {
+                            wrapper.innerHTML = '<div class="error">图表加载失败，请刷新页面重试</div>';
+                        }
+                    });
+                }
+            });
+        });
+        
+        // 响应式处理 - 增强版
+        function handleResize() {
+            const vizWrappers = document.querySelectorAll('.visualization-wrapper');
+            
+            vizWrappers.forEach(wrapper => {
+                const iframe = wrapper.querySelector('iframe');
+                const flourishEmbed = wrapper.querySelector('.flourish-embed');
+                
+                if (iframe) {
+                    // 强制重新计算尺寸
+                    iframe.style.width = '100%';
+                    iframe.style.height = '600px';
+                    iframe.style.minHeight = '600px';
+                    iframe.style.maxHeight = '600px';
+                }
+                
+                if (flourishEmbed) {
+                    flourishEmbed.style.width = '100%';
+                    flourishEmbed.style.height = '600px';
+                }
+            });
+            
+            // 延迟再次调整，确保完全渲染
+            setTimeout(() => {
+                vizWrappers.forEach(wrapper => {
+                    const iframe = wrapper.querySelector('iframe');
+                    if (iframe && iframe.contentWindow) {
+                        try {
+                            // 通知iframe内部重新计算尺寸
+                            iframe.contentWindow.postMessage({type: 'resize'}, '*');
+                        } catch(e) {
+                            console.log('跨域限制，无法直接通信');
+                        }
+                    }
+                });
+            }, 100);
+        }
+        
+        // 强制刷新Flourish图表
+        function forceRefreshFlourish() {
+            const activePanel = document.querySelector('.visualization-panel.active');
+            if (activePanel) {
+                const iframe = activePanel.querySelector('iframe');
+                if (iframe) {
+                    // 临时隐藏再显示，触发重新渲染
+                    iframe.style.opacity = '0';
+                    setTimeout(() => {
+                        iframe.style.opacity = '1';
+                        handleResize();
+                    }, 50);
+                }
+            }
+        }
+        
+        window.addEventListener('resize', handleResize);
+        
+        // 监听 Flourish 嵌入加载完成
+        document.addEventListener('flourish:loaded', function() {
+            console.log('Flourish 可视化已加载完成');
+            handleResize();
+        });
+        
+        // 键盘快捷键支持
+        document.addEventListener('keydown', function(e) {
+            if (e.key === '1' && e.ctrlKey) {
+                e.preventDefault();
+                switchVisualization('viz1');
+                document.querySelector('.tab-button').classList.add('active');
+            } else if (e.key === '2' && e.ctrlKey) {
+                e.preventDefault();
+                switchVisualization('viz2');
+                document.querySelectorAll('.tab-button')[1].classList.add('active');
+            } else if (e.key === '3' && e.ctrlKey) {
+                e.preventDefault();
+                switchVisualization('viz3');
+                document.querySelectorAll('.tab-button')[2].classList.add('active');
+            }
+        });
+    </script>
+</body>
+</html>

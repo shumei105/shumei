@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>育才云图</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+<style>
+  :root{ font-size: 16px; }
+  *{ box-sizing: border-box; margin:0; padding:0; }
+  body{
+    background:#0b1220; color:#dbe5ff; font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+    overflow-x:hidden; height: 100vh; margin: 0;
+  }
+  .screen{
+    width:100vw; height:100vh; display:flex; flex-direction:column; padding:0.6rem;
+    gap:0.6rem;
+  }
+  .header{
+    display:flex; align-items:center; justify-content:space-between; padding:0.6rem 0.8rem;
+    background:linear-gradient(90deg,#0e1830,#0b1220); border:1px solid #1b2744; border-radius:12px;
+    box-shadow:0 4px 20px rgba(0,0,0,.35);
+    position: relative;
+    flex-shrink: 0;
+  }
+  .header .title{ font-size:1.25rem; letter-spacing:.06rem; font-weight:700; }
+  .header .meta{ opacity:.85; font-size:.9rem; }
+  
+  /* 导航栏样式 */
+  .nav-tabs {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(27, 39, 68, 0.5);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    flex-shrink: 0;
+  }
+  .nav-tab {
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: rgba(20, 30, 60, 0.7);
+    border: 1px solid #2a3a6a;
+  }
+  .nav-tab:hover {
+    background: rgba(40, 60, 120, 0.7);
+  }
+  .nav-tab.active {
+    background: #4fc3f7;
+    color: #0b1220;
+    font-weight: bold;
+    box-shadow: 0 0 10px rgba(79, 195, 247, 0.7);
+  }
+
+  /* 图表容器样式 */
+  .chart-container {
+    flex: 1;
+    display: none;
+    flex-direction: column;
+    gap: 0.6rem;
+    min-height: 0;
+    height: 100%;
+  }
+  .chart-container.active {
+    display: flex;
+    animation: fadeIn 0.5s ease;
+  }
+  
+  .page2-content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    gap: 0.6rem;
+    min-height: 0;
+    height: 100%;
+  }
+  .page2-panel {
+    background: #0e1830;
+    border: 1px solid #1b2744;
+    border-radius: 12px;
+    padding: 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    height: 100%;
+    min-height: 0;
+  }
+  .full-width {
+    grid-column: 1;
+  }
+  .panel h3{
+    font-size:1rem; font-weight:600; letter-spacing:.04rem; color:#90c4ff; 
+    display:flex; align-items:center; gap:.4rem;
+    flex-shrink: 0;
+  }
+  .chart{ 
+    flex:1; 
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .footer{
+    text-align:center; opacity:.65; font-size:.85rem; padding:.2rem 0;
+    flex-shrink: 0;
+  }
+  .bar { 
+    height:3px; 
+    background:linear-gradient(90deg,#4fc3f7,#7c4dff); 
+    border-radius:2px; 
+    flex-shrink: 0;
+  }
+  
+  /* 动画效果 */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  /* 小屏适配 */
+  @media (max-width: 1200px){
+    .page2-content{ 
+      grid-template-columns: 1fr; 
+      grid-template-rows: 1fr;
+    }
+    .full-width {
+      grid-column: 1;
+    }
+    .nav-tabs {
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="screen">
+  <div class="header">
+    <div class="title">育才云图</div>
+    <div class="meta" id="clock">--:--:--</div>
+  </div>
+
+  <!-- 导航栏 -->
+  <div class="nav-tabs">
+    <div class="nav-tab active" data-chart="stackedBar">高校类型堆叠图</div>
+    <div class="nav-tab" data-chart="stackedArea">高校评分堆叠图</div>
+    <div class="nav-tab" data-chart="barRace">高校排名变化</div>
+  </div>
+
+  <!-- 图表1：高校类型堆叠图 -->
+  <div class="chart-container active" id="stackedBar-container">
+    <div class="page2-panel full-width">
+      <h3>高校类型堆叠图</h3>
+      <div class="bar"></div>
+      <div id="stackedBar" class="chart"></div>
+    </div>
+  </div>
+
+  <!-- 图表2：高校评分堆叠图 -->
+  <div class="chart-container" id="stackedArea-container">
+    <div class="page2-content">
+      <div class="page2-panel full-width">
+        <h3>高校评分堆叠图</h3>
+        <div class="bar"></div>
+        <div id="stackedArea" class="chart"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 图表3：高校排名变化 -->
+  <div class="chart-container" id="barRace-container">
+    <div class="page2-panel full-width">
+      <h3>近十年中国高校排名变化</h3>
+      <div class="bar"></div>
+      <div id="barRaceFull" class="chart"></div>
+    </div>
+  </div>
+
+  <div class="footer">基于真实高校数据可视化分析</div>
+</div>
+
+<script>
+  // 实时时钟
+  const clockEl = document.getElementById('clock');
+  const tick = () => {
+    const d = new Date();
+    const pad = n => n.toString().padStart(2,'0');
+    clockEl.textContent = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  };
+  tick(); setInterval(tick, 1000);
+
+  // 图表切换逻辑
+  const tabs = document.querySelectorAll('.nav-tab');
+  const containers = document.querySelectorAll('.chart-container');
+  
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      const chartId = tab.getAttribute('data-chart');
+      
+      // 更新激活的标签
+      tabs.forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      
+      // 显示对应的图表容器
+      containers.forEach(container => {
+        container.classList.remove('active');
+      });
+      document.getElementById(`${chartId}-container`).classList.add('active');
+      
+      // 重新调整图表大小以适应新容器
+      setTimeout(() => {
+        charts.forEach(c => c.resize());
+      }, 100);
+    });
+  });
+
+  // 统一初始化方法
+  function init(id){ 
+    const chart = echarts.init(document.getElementById(id));
+    // 添加窗口大小变化时的自适应
+    window.addEventListener('resize', () => chart.resize());
+    return chart;
+  }
+
+  // 使用Excel表格中的准确数据（已修复错误）
+  const universityData = [
+    {name: '北京市', total: 92, undergraduate: 67, value985: 8, value211: 26, doubleFirstClass: 34, regularUndergraduate: 33, vocational: 25},
+    {name: '天津市', total: 56, undergraduate: 30, value985: 2, value211: 3, doubleFirstClass: 6, regularUndergraduate: 24, vocational: 26},
+    {name: '河北省', total: 128, undergraduate: 61, value985: 0, value211: 1, doubleFirstClass: 2, regularUndergraduate: 59, vocational: 67},
+    {name: '山西省', total: 83, undergraduate: 34, value985: 0, value211: 1, doubleFirstClass: 1, regularUndergraduate: 33, vocational: 49},
+    {name: '内蒙古自治区', total: 54, undergraduate: 17, value985: 0, value211: 1, doubleFirstClass: 1, regularUndergraduate: 16, vocational: 37},
+    {name: '辽宁省', total: 114, undergraduate: 63, value985: 2, value211: 4, doubleFirstClass: 4, regularUndergraduate: 59, vocational: 51},
+    {name: '吉林省', total: 66, undergraduate: 37, value985: 1, value211: 3, doubleFirstClass: 3, regularUndergraduate: 34, vocational: 29},
+    {name: '黑龙江省', total: 78, undergraduate: 39, value985: 1, value211: 4, doubleFirstClass: 4, regularUndergraduate: 35, vocational: 39},
+    {name: '上海市', total: 64, undergraduate: 40, value985: 4, value211: 10, doubleFirstClass: 15, regularUndergraduate: 25, vocational: 24},
+    {name: '江苏省', total: 168, undergraduate: 78, value985: 2, value211: 11, doubleFirstClass: 16, regularUndergraduate: 62, vocational: 90},
+    {name: '浙江省', total: 109, undergraduate: 60, value985: 1, value211: 1, doubleFirstClass: 3, regularUndergraduate: 57, vocational: 49},
+    {name: '安徽省', total: 121, undergraduate: 46, value985: 1, value211: 3, doubleFirstClass: 3, regularUndergraduate: 43, vocational: 75},
+    {name: '福建省', total: 89, undergraduate: 39, value985: 1, value211: 2, doubleFirstClass: 2, regularUndergraduate: 37, vocational: 50},
+    {name: '江西省', total: 108, undergraduate: 45, value985: 0, value211: 1, doubleFirstClass: 1, regularUndergraduate: 44, vocational: 63},
+    {name: '山东省', total: 153, undergraduate: 70, value985: 2, value211: 3, doubleFirstClass: 4, regularUndergraduate: 66, vocational: 83},
+    {name: '河南省', total: 156, undergraduate: 57, value985: 0, value211: 1, doubleFirstClass: 2, regularUndergraduate: 55, vocational: 99},
+    {name: '湖北省', total: 132, undergraduate: 68, value985: 2, value211: 7, doubleFirstClass: 7, regularUndergraduate: 61, vocational: 64},
+    {name: '湖南省', total: 137, undergraduate: 53, value985: 3, value211: 4, doubleFirstClass: 5, regularUndergraduate: 48, vocational: 84},
+    {name: '广东省', total: 162, undergraduate: 69, value985: 2, value211: 4, doubleFirstClass: 8, regularUndergraduate: 61, vocational: 93},
+    {name: '广西壮族自治区', total: 85, undergraduate: 38, value985: 0, value211: 1, doubleFirstClass: 1, regularUndergraduate: 37, vocational: 47},
+    {name: '海南省', total: 22, undergraduate: 9, value985: 0, value211: 1, doubleFirstClass: 1, regularUndergraduate: 8, vocational: 13},
+    {name: '重庆市', total: 70, undergraduate: 26, value985: 1, value211: 2, doubleFirstClass: 2, regularUndergraduate: 24, vocational: 44},
+    {name: '四川省', total: 134, undergraduate: 53, value985: 2, value211: 5, doubleFirstClass: 8, regularUndergraduate: 45, vocational: 81},
+    {name: '贵州省', total: 75, undergraduate: 29, value985: 0, value211: 1, doubleFirstClass: 1, regularUndergraduate: 28, vocational: 46},
+    {name: '云南省', total: 83, undergraduate: 32, value985: 0, value211: 1, doubleFirstClass: 1, regularUndergraduate: 31, vocational: 51},
+    {name: '西藏自治区', total: 7, undergraduate: 4, value985: 0, value211: 1, doubleFirstClass: 1, regularUndergraduate: 3, vocational: 3},
+    {name: '陕西省', total: 97, undergraduate: 57, value985: 3, value211: 8, doubleFirstClass: 8, regularUndergraduate: 49, vocational: 40},
+    {name: '甘肃省', total: 50, undergraduate: 22, value985: 1, value211: 1, doubleFirstClass: 1, regularUndergraduate: 21, vocational: 28},
+    {name: '青海省', total: 12, undergraduate: 4, value985: 0, value211: 1, doubleFirstClass: 1, regularUndergraduate: 3, vocational: 8},
+    {name: '宁夏回族自治区', total: 20, undergraduate: 8, value985: 0, value211: 1, doubleFirstClass: 1, regularUndergraduate: 7, vocational: 12},
+    {name: '新疆维吾尔自治区', total: 55, undergraduate: 19, value985: 0, value211: 2, doubleFirstClass: 2, regularUndergraduate: 17, vocational: 36}
+  ];
+
+  // 计算教育发展指数 (基于985和211数量)
+  universityData.forEach(province => {
+    province.eduIndex = Math.round((province.value985 * 60 + province.value211 * 40) / 10);
+  });
+
+  // 图表初始化
+  // 图表 1：堆叠条形图 - 各省份985、211和其他学校数量
+  const stackedBar = init('stackedBar');
+  
+  // 准备堆叠条形图数据
+  const provinces = universityData.map(item => item.name);
+  const data985 = universityData.map(item => item.value985);
+  const data211 = universityData.map(item => item.value211 - item.value985); // 211但不包括985
+  const dataOther = universityData.map(item => item.undergraduate - item.value211); // 其他本科学校
+  
+  stackedBar.setOption({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      },
+      formatter: function(params) {
+        let result = params[0].name + '<br/>';
+        let total = 0;
+        params.forEach(item => {
+          result += `${item.marker} ${item.seriesName}: ${item.value}<br/>`;
+          total += item.value;
+        });
+        result += `<hr style="margin:5px 0;border-top:1px solid rgba(255,255,255,0.2)"/>`;
+        result += `<strong>本科总数: ${total}</strong>`;
+        return result;
+      }
+    },
+    legend: {
+      data: ['985高校', '211高校(非985)', '其他本科高校'],
+      textStyle: { color: '#dbe5ff' },
+      top: 'top',
+      right: '5%'
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '15%', // 增加底部空间给省份名称
+      top: '15%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      data: provinces,
+      axisLabel: { 
+        color: '#dbe5ff',
+        fontSize: 10,
+        interval: 0,
+        rotate: 45 // 旋转45度避免重叠
+      }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: '#dbe5ff' },
+      splitLine: {
+        lineStyle: {
+          color: 'rgba(255,255,255,0.1)'
+        }
+      }
+    },
+    series: [
+      {
+        name: '985高校',
+        type: 'bar',
+        stack: 'total',
+        emphasis: {
+          focus: 'series'
+        },
+        data: data985,
+        itemStyle: {
+          color: '#ff6b81' // 红色
+        }
+      },
+      {
+        name: '211高校(非985)',
+        type: 'bar',
+        stack: 'total',
+        emphasis: {
+          focus: 'series'
+        },
+        data: data211,
+        itemStyle: {
+          color: '#ffa726' // 橙色
+        }
+      },
+      {
+        name: '其他本科高校',
+        type: 'bar',
+        stack: 'total',
+        emphasis: {
+          focus: 'series'
+        },
+        data: dataOther,
+        itemStyle: {
+          color: '#4fc3f7' // 蓝色
+        }
+      }
+    ]
+  });
+
+  // 图表 2：堆叠面积图 - 高校指标分布
+  const stackedArea = init('stackedArea');
+  
+  // 从表格数据中提取前20名高校的完整指标数据
+  const top20Universities = [
+    {name: '清华大学', 学科水平: 85.9, 办学资源: 46.0, 师资规模: 29.3, 人才培养: 331.4, 科学研究: 115.5, 社会服务: 35.5, 重大项目与成果: 100.0, 国际竞争力: 66.5},
+    {name: '北京大学', 学科水平: 85.9, 办学资源: 28.9, 师资规模: 25.7, 人才培养: 328.5, 科学研究: 113.8, 社会服务: 17.8, 重大项目与成果: 100.0, 国际竞争力: 100.0},
+    {name: '浙江大学', 学科水平: 77.3, 办学资源: 33.2, 师资规模: 23.5, 人才培养: 300.9, 科学研究: 111.7, 社会服务: 22.3, 重大项目与成果: 81.3, 国际竞争力: 46.5},
+    {name: '上海交通大学', 学科水平: 69.8, 办学资源: 28.9, 师资规模: 22.1, 人才培养: 278.8, 科学研究: 116.3, 社会服务: 25.5, 重大项目与成果: 75.0, 国际竞争力: 53.5},
+    {name: '复旦大学', 学科水平: 74.1, 办学资源: 17.4, 师资规模: 20.8, 人才培养: 267.8, 科学研究: 89.9, 社会服务: 23.3, 重大项目与成果: 68.8, 国际竞争力: 60.5},
+    {name: '南京大学', 学科水平: 64.2, 办学资源: 12.1, 师资规模: 19.6, 人才培养: 274.2, 科学研究: 78.2, 社会服务: 9.5, 重大项目与成果: 56.3, 国际竞争力: 53.5},
+    {name: '中国科学技术大学', 学科水平: 49.7, 办学资源: 13.0, 师资规模: 18.9, 人才培养: 238.4, 科学研究: 73.1, 社会服务: 9.8, 重大项目与成果: 62.5, 国际竞争力: 46.5},
+    {name: '武汉大学', 学科水平: 53.1, 办学资源: 14.6, 师资规模: 18.2, 人才培养: 270.0, 科学研究: 64.5, 社会服务: 9.3, 重大项目与成果: 43.8, 国际竞争力: 30.2},
+    {name: '华中科技大学', 学科水平: 48.2, 办学资源: 13, 师资规模: 17.8, 人才培养: 254.5, 科学研究: 78.1, 社会服务: 10.9, 重大项目与成果: 50.0, 国际竞争力: 32.6},
+    {name: '西安交通大学', 学科水平: 44.0, 办学资源: 12.7, 师资规模: 17.5, 人才培养: 265.8, 科学研究: 69.6, 社会服务: 16.9, 重大项目与成果: 43.8, 国际竞争力: 23.3},
+    {name: '北京航空航天大学', 学科水平: 41.6, 办学资源: 15.7, 师资规模: 16.9, 人才培养: 243, 科学研究: 64.1, 社会服务: 11.8, 重大项目与成果: 56.3, 国际竞争力: 23.3},
+    {name: '中山大学', 学科水平: 54.2, 办学资源: 15.0, 师资规模: 6.5, 人才培养: 210.9, 科学研究: 90.2, 社会服务: 9.2, 重大项目与成果: 37.5, 国际竞争力: 30.2},
+    {name: '北京理工大学', 学科水平: 36.4, 办学资源: 15.7, 师资规模: 16.2, 人才培养: 233.5, 科学研究: 65.2, 社会服务: 17.7, 重大项目与成果: 50.0, 国际竞争力: 18.6},
+    {name: '哈尔滨工业大学', 学科水平: 42.9, 办学资源: 18.1, 师资规模: 15.8, 人才培养: 242.8, 科学研究: 67.1, 社会服务: 13.8, 重大项目与成果: 56.3, 国际竞争力: 23.3},
+    {name: '四川大学', 学科水平: 43.2, 办学资源: 9.6, 师资规模: 15.5, 人才培养: 247.7, 科学研究: 75.5, 社会服务: 14.4, 重大项目与成果: 37.5, 国际竞争力: 18.6},
+    {name: '东南大学', 学科水平: 51.2, 办学资源: 15.9, 师资规模: 15.2, 人才培养: 241.3, 科学研究: 66.8, 社会服务: 12.1, 重大项目与成果: 43.8, 国际竞争力: 23.3},
+    {name: '中国人民大学', 学科水平: 58.5, 办学资源: 11.2, 师资规模: 14.9, 人才培养: 245.8, 科学研究: 44.9, 社会服务: 1.4, 重大项目与成果: 18.8, 国际竞争力: 23.3},
+    {name: '同济大学', 学科水平: 42.0, 办学资源: 16.8, 师资规模: 14.6, 人才培养: 230.8, 科学研究: 66.9, 社会服务: 10.7, 重大项目与成果: 43.8, 国际竞争力: 23.3},
+    {name: '北京师范大学', 学科水平: 53.2, 办学资源: 13.4, 师资规模: 14.3, 人才培养: 225.4, 科学研究: 50.0, 社会服务: 2.3, 重大项目与成果: 25.0, 国际竞争力: 23.3},
+    {name: '天津大学', 学科水平: 35.7, 办学资源: 9.8, 师资规模: 14.0, 人才培养: 249.0, 科学研究: 49.2, 社会服务: 11.1, 重大项目与成果: 37.5, 国际竞争力: 18.6}
+  ];
+
+  // 所有指标列表
+  const indicators = [
+    '学科水平', '办学资源', '师资规模', '人才培养', 
+    '科学研究', '社会服务', '重大项目与成果', '国际竞争力'
+  ];
+
+  // 颜色列表
+  const colors = [
+    '#4fc3f7', '#7c4dff', '#ff6b81', '#ffa726',
+    '#66bb6a', '#26c6da', '#ab47bc', '#8d6e63'
+  ];
+
+  // 设置堆叠面积图选项
+  stackedArea.setOption({
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'cross',
+        label: {
+          backgroundColor: '#6a7985'
+        }
+      },
+      formatter: function(params) {
+        let result = params[0].name + '<br/>';
+        let total = 0;
+        params.forEach(item => {
+          result += `${item.marker} ${item.seriesName}: ${item.value}<br/>`;
+          total += item.value;
+        });
+        result += `<hr style="margin:5px 0;border-top:1px solid rgba(255,255,255,0.2)"/>`;
+        result += `<strong>总分: ${total.toFixed(1)}</strong>`;
+        return result;
+      }
+    },
+    legend: {
+      data: indicators,
+      textStyle: { color: '#dbe5ff' },
+      top: 'top',
+      type: 'scroll',
+      pageIconColor: '#dbe5ff',
+      pageTextStyle: { color: '#dbe5ff' }
+    },
+    grid: {
+      left: '3%',
+      right: '4%',
+      bottom: '3%',
+      top: '20%',
+      containLabel: true
+    },
+    xAxis: {
+      type: 'category',
+      boundaryGap: false,
+      data: top20Universities.map(u => u.name),
+      axisLabel: { 
+        color: '#dbe5ff',
+        rotate: 45,
+        interval: 0,
+        fontSize: 10
+      }
+    },
+    yAxis: {
+      type: 'value',
+      axisLabel: { color: '#dbe5ff' },
+      splitLine: {
+        lineStyle: {
+          color: 'rgba(255,255,255,0.1)'
+        }
+      }
+    },
+    series: indicators.map((indicator, index) => ({
+      name: indicator,
+      type: 'line',
+      stack: 'total',
+      areaStyle: {
+        color: colors[index],
+        opacity: 0.8
+      },
+      emphasis: {
+        focus: 'series'
+      },
+      data: top20Universities.map(u => u[indicator])
+    }))
+  });
+
+  // 图表 3：高校排名变化条形竞赛图 - 使用Excel数据
+  const barRaceFull = init('barRaceFull');
+  
+  // 从Excel表格中提取的准确数据
+  const universityRankData = {
+    '清华大学': [94.0, 94.0, 94.0, 95.3, 94.6, 852.5, 852.5, 999.4, 1004.1, 1004.1, 1076.1],
+    '北京大学': [81.0, 81.0, 81.0, 78.6, 76.5, 746.7, 746.7, 912.5, 910.5, 910.5, 1027.7],
+    '浙江大学': [80.0, 80.0, 78.0, 73.9, 72.9, 649.2, 649.2, 825.3, 822.9, 822.9, 868.9],
+    '上海交通大学': [78.0, 78.0, 77.0, 73.1, 72.1, 625.9, 625.9, 783.3, 778.6, 778.6, 851.7],
+    '复旦大学': [72.0, 72.0, 71.0, 66.0, 65.6, 556.7, 556.7, 697.8, 712.4, 712.4, 788.4],
+    '南京大学': [64.0, 64.0, 65.0, 59.8, 58.9, 566.1, 566.1, 683.4, 676.2, 676.2, 707.8],
+    '中国科学技术大学': [65.0, 65.0, 66.0, 61.9, 60.9, 526.4, 526.4, 609.9, 608.6, 608.6, 637.0],
+    '华中科技大学': [61.0, 61.0, 63.0, 59.1, 58.9, 497.7, 497.7, 609.3, 606.2, 606.2, 628.9],
+    '武汉大学': [null, null, null, null, null, 488.0, 488.0, 607.1, 599.1, 599.1, 629.2],
+    '西安交通大学': [null, null, null, null, null, 457.2, 457.2, 570.2, 572.6, 572.6, 598.5]
+  };
+
+  // 年份数据
+  const rankYears = [2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025];
+  
+  // 准备条形竞赛图数据
+  const barRaceData = rankYears.map((year, yearIndex) => {
+    // 获取该年份所有学校的数据
+    const yearData = Object.keys(universityRankData).map(name => {
+      return {
+        name: name,
+        value: universityRankData[name][yearIndex],
+        year: year
+      };
+    }).filter(item => item.value !== null); // 过滤掉没有数据的学校
+    
+    // 按值排序
+    return yearData.sort((a, b) => b.value - a.value);
+  });
+
+  // 设置条形竞赛图选项
+  const barRaceOption = {
+    grid: {
+      top: 50,
+      bottom: 60,
+      left: 180,
+      right: 120
+    },
+    xAxis: {
+      axisLabel: { 
+        color: '#dbe5ff',
+        fontSize: 12
+      },
+      name: '综合评分',
+      nameTextStyle: {
+        color: '#dbe5ff'
+      },
+      max: function(value) {
+        return value.max * 1.1; // 留出10%的空间
+      }
+    },
+    yAxis: {
+      type: 'category',
+      inverse: true,
+      axisLabel: {
+        show: true,
+        color: '#dbe5ff',
+        fontSize: 14,
+        fontWeight: 'bold'
+      },
+      animationDuration: 300,
+      animationDurationUpdate: 300
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: {
+        type: 'shadow'
+      },
+      formatter: function(params) {
+        const data = params[0];
+        const currentYear = rankYears[currentYearIndex];
+        return `${data.name}<br/>${data.value.toFixed(2)}分<br/>${rankYears[currentYearIndex-1]}年排名: ${params[0].dataIndex + 1}`;
+      }
+    },
+    graphic: {
+      elements: [{
+        type: 'text',
+        right: 160,
+        top: 20,
+        style: {
+          text: '',
+          textAlign: 'center',
+          fill: '#dbe5ff',
+          fontSize: 24,
+          fontWeight: 'bold'
+        },
+        z: 100
+      }]
+    },
+    series: [{
+      realtimeSort: true,
+      name: '综合评分',
+      type: 'bar',
+      data: barRaceData[0].map(d => ({
+        name: d.name,
+        value: d.value
+      })),
+      label: {
+        show: true,
+        position: 'right',
+        valueAnimation: true,
+        color: '#dbe5ff',
+        formatter: function(params) {
+          return params.value.toFixed(2) + ' 分'; // 修改这里，保留两位小数
+        }
+      },
+      itemStyle: {
+        color: function(params) {
+          // 为不同学校分配不同颜色
+          const colorMap = {
+            '清华大学': '#ff6b81',
+            '北京大学': '#4fc3f7',
+            '浙江大学': '#7c4dff',
+            '上海交通大学': '#ffa726',
+            '复旦大学': '#66bb6a',
+            '南京大学': '#26c6da',
+            '中国科学技术大学': '#ab47bc',
+            '华中科技大学': '#8d6e63',
+            '武汉大学': '#f06292',
+            '西安交通大学': '#26a69a'
+          };
+          return colorMap[params.name] || '#90a4ae';
+        }
+      }
+    }],
+    animationDuration: 0,
+    animationDurationUpdate: 1500,
+    animationEasing: 'linear',
+    animationEasingUpdate: 'linear'
+  };
+  
+  barRaceFull.setOption(barRaceOption);
+  
+  // 条形竞赛图动画
+  let currentYearIndex = 0;
+  function updateBarRace() {
+    if (currentYearIndex >= rankYears.length) currentYearIndex = 0;
+    
+    const yearData = barRaceData[currentYearIndex];
+    const year = rankYears[currentYearIndex];
+    
+    // 创建带有格式化标签的数据
+    const formattedData = yearData.map(d => ({
+      name: d.name,
+      value: d.value,
+      label: {
+        formatter: function() {
+          return d.value.toFixed(2) + ' 分';
+        }
+      }
+    }));
+    
+    barRaceFull.setOption({
+      xAxis: {
+        max: Math.max(...yearData.map(d => d.value)) * 1.1
+      },
+      yAxis: {
+        data: yearData.map(d => d.name)
+      },
+      series: [{
+        data: formattedData,
+        label: {
+          formatter: function(params) {
+            return params.value.toFixed(2) + ' 分';
+          }
+        }
+      }],
+      graphic: {
+        elements: [{
+          type: 'text',
+          right: 160,
+          top: 20,
+          style: {
+            text: year + '年',
+            textAlign: 'center',
+            fill: '#dbe5ff',
+            fontSize: 24,
+            fontWeight: 'bold'
+          }
+        }]
+      }
+    });
+    
+    currentYearIndex++;
+  }
+  
+  // 开始条形竞赛图动画
+  const barRaceInterval = setInterval(updateBarRace, 2000);
+
+  // 确保在切换页面时停止之前的动画
+  let currentBarRaceInterval = barRaceInterval;
+  tabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      clearInterval(currentBarRaceInterval);
+      if (tab.getAttribute('data-chart') === 'barRace') {
+        currentBarRaceInterval = setInterval(updateBarRace, 2000);
+      }
+    });
+  });
+
+  // 自适应
+  const charts = [stackedBar, stackedArea, barRaceFull];
+  window.addEventListener('resize', () => charts.forEach(c => c.resize()));
+</script>
+</body>
+</html>
